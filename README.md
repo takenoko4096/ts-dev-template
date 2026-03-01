@@ -13,9 +13,8 @@ powershell -c "irm bun.sh/install.ps1 | iex"
 
 ### 2. リポジトリのセットアップ
 
-このリポジトリをcloneしたあと
 ```bash
-bun init
+bun init -y
 
 # 必要に応じて
 npm i @minecraft/vanilla-data
