@@ -1,8 +1,6 @@
-import bun from "bun"
-
 console.log("build start");
 
-const output = await bun.build({
+const output = await Bun.build({
     entrypoints: [
         "./src/index.ts"
     ],

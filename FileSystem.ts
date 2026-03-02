@@ -142,52 +142,7 @@ export class TextFile extends File {
         fs.writeFileSync(this.path.toString(), contents.join('\n'), { encoding });
     }
 
-    public fromFile(file: File): TextFile {
+    public static fromFile(file: File): TextFile {
         return new TextFile(file.getPath());
-    }
-}
-
-export namespace minecraftAddonDevelopment {
-    export const sharedGamesComMojang: Path = Path.absolute("C:\\Users\\wakab\\AppData\\Roaming\\Minecraft Bedrock\\Users\\Shared\\games\\com.mojang");
-
-    export const developmentBehaviorPacks: Path = sharedGamesComMojang.concat("development_behavior_packs");
-
-    export const developmentResourcePacks: Path = sharedGamesComMojang.concat("development_resource_packs");
-
-    export interface Deployment {
-        readonly behavior?: string;
-        readonly resource?: string;
-        readonly importMeta: ImportMeta;
-    }
-
-    export function deployToDevelopmentDirectories(deployment: Deployment) {
-        const rpl = RelativePathLoader.ofCurrentDirectory(deployment.importMeta);
-
-        function __deploy__(src: Path, dest: Path): void {
-            const srcFile = src.toFile();
-
-            if (!srcFile.exists()) {
-                throw new Error();
-            }
-
-            if (srcFile.isFile()) {
-                throw new Error();
-            }
-
-            dest.toFile().delete();
-            src.toFile().copyTo(dest);
-        }
-
-        if (deployment.behavior !== undefined) {
-            const dest = developmentBehaviorPacks.concat(deployment.behavior);
-            const src = rpl.relative(deployment.behavior);
-            __deploy__(src, dest);
-        }
-
-        if (deployment.resource !== undefined) {
-            const dest = developmentResourcePacks.concat(deployment.resource);
-            const src = rpl.relative(deployment.resource);
-            __deploy__(src, dest);
-        }
     }
 }
