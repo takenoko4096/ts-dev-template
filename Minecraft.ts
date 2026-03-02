@@ -1,4 +1,5 @@
 import { Path, RelativePathLoader, TextFile } from "./FileSystem";
+import { TypeModel, typeSentry } from "./TypeSentry";
 
 export namespace minecraft {
     export const sharedGamesComMojang: Path = Path.absolute("C:\\Users\\wakab\\AppData\\Roaming\\Minecraft Bedrock\\Users\\Shared\\games\\com.mojang");
@@ -59,37 +60,37 @@ export namespace minecraft {
 
         readonly description: string;
 
-        readonly uuid?: string;
+        readonly uuid: string;
 
-        readonly version?: [number, number, number];
+        readonly version: [number, number, number];
 
         readonly min_engine_version: MinecraftVersion;
     }
 
     export enum ManifestModuleType {
         Data = "data",
-        Resources = "resourceS",
+        Resources = "resources",
         Script = "script"
     }
 
-    interface ManiestModule {
+    interface ManifestModule {
         readonly type: ManifestModuleType;
 
-        readonly description?: string;
+        readonly description: string;
 
-        readonly uuid?: string;
+        readonly uuid: string;
 
-        readonly version?: [number, number, number];
+        readonly version: [number, number, number];
     }
 
-    export enum ManifestScriptLanguage {
+    export enum ScriptLanguage {
         JavaScript = "javascript"
     }
 
-    interface ManifestScriptModule extends ManiestModule {
+    interface ManifestScriptModule extends ManifestModule {
         readonly type: ManifestModuleType.Script;
 
-        readonly language: ManifestScriptLanguage;
+        readonly language: ScriptLanguage;
 
         readonly entry: string;
     }
@@ -105,7 +106,7 @@ export namespace minecraft {
     interface ManifestAddonDependency {
         readonly uuid: string;
 
-        readonly version?: [number, number, number];
+        readonly version: [number, number, number];
     }
 
     export enum ScriptModule {
@@ -212,27 +213,77 @@ export namespace minecraft {
 
         readonly url?: string;
 
-        readonly product_type?: ManifestMetadataProductType;
+        readonly product_type?: MetadataProductType;
 
         readonly generated_with?: Record<string, string[]>;
     }
 
-    export enum ManifestMetadataProductType {
+    export enum MetadataProductType {
         Addon = "addon"
     }
 
     export interface Manifest {
-        readonly format_version?: number;
+        readonly format_version: number;
     
         readonly header: ManifestHeader;
 
-        readonly modules: (ManiestModule | ManifestScriptModule)[];
+        readonly modules: (ManifestModule | ManifestScriptModule)[];
 
         readonly capabilities?: ManifestCapability[];
 
         readonly dependencies?: ManifestDependency[];
 
         readonly metadata?: ManifestMetadata;
+    }
+
+    export interface ManifestInput {
+        readonly format_version?: number;
+    
+        readonly header: ManifestHeaderInput;
+
+        readonly modules: (ManiestModuleInput | ManifestScriptModuleInput)[];
+
+        readonly capabilities?: ManifestCapability[];
+
+        readonly dependencies?: (ManifestAddonDependencyInput | ManifestMinecraftScriptModuleDependency)[];
+
+        readonly metadata?: ManifestMetadata;
+    }
+
+    interface ManifestHeaderInput {
+        readonly name: string;
+
+        readonly description: string;
+
+        readonly uuid: string;
+
+        readonly version?: [number, number, number];
+
+        readonly min_engine_version: MinecraftVersion;
+    }
+
+    interface ManiestModuleInput {
+        readonly type: ManifestModuleType;
+
+        readonly description?: string;
+
+        readonly uuid?: string;
+
+        readonly version?: [number, number, number];
+    }
+
+    interface ManifestScriptModuleInput extends ManiestModuleInput {
+        readonly type: ManifestModuleType.Script;
+
+        readonly language?: ScriptLanguage;
+
+        readonly entry: string;
+    }
+
+    interface ManifestAddonDependencyInput {
+        readonly uuid: string;
+
+        readonly version?: [number, number, number];
     }
 
     export function uuidv4(): string {
@@ -252,53 +303,185 @@ export namespace minecraft {
         return chars.join('');
     }
 
-    export function createManifestJsonIfNotExists(importMeta: ImportMeta, path: string, manifest: Manifest): void {
-        const manifestJson = RelativePathLoader.ofCurrentDirectory(importMeta).relative(path).toFile();
+    const VersionModel: TypeModel<[number, number, number]> = typeSentry.tupleOf(
+        typeSentry.number.nonNaN().int(),
+        typeSentry.number.nonNaN().int(),
+        typeSentry.number.nonNaN().int()
+    );
 
-        if (manifestJson.exists()) {
-            return;
+    const ManifestAddonDependencyModel: TypeModel<ManifestAddonDependency> = typeSentry.structOf({
+        uuid: typeSentry.string,
+        version: VersionModel
+    });
+
+    const ManifestDependencyModel: TypeModel<ManifestDependency> = typeSentry.unionOf(
+        ManifestAddonDependencyModel,
+        typeSentry.structOf({
+            module_name: typeSentry.string,
+            version: typeSentry.string
+        }) as TypeModel<ManifestMinecraftScriptModuleDependency>
+    );
+
+    export const ManifestModel: TypeModel<Manifest> = typeSentry.structOf({
+        format_version: typeSentry.number.nonNaN().int(),
+        header: typeSentry.structOf({
+            name: typeSentry.string,
+            description: typeSentry.string,
+            uuid: typeSentry.string,
+            version: VersionModel,
+            min_engine_version: VersionModel as TypeModel<MinecraftVersion>
+        }),
+        modules: typeSentry.arrayOf(typeSentry.unionOf(
+            typeSentry.structOf({
+                type: typeSentry.enumLikeOf(ManifestModuleType),
+                description: typeSentry.string,
+                uuid: typeSentry.string,
+                version: VersionModel
+            }),
+            typeSentry.structOf({
+                type: typeSentry.literalOf(ManifestModuleType.Script),
+                description: typeSentry.string,
+                uuid: typeSentry.string,
+                version: VersionModel,
+                language: typeSentry.enumLikeOf(ScriptLanguage),
+                entry: typeSentry.string
+            })
+        )),
+        dependencies: typeSentry.optionalOf(typeSentry.arrayOf(ManifestDependencyModel)),
+        capabilities: typeSentry.optionalOf(typeSentry.arrayOf(typeSentry.enumLikeOf(ManifestCapability))),
+        metadata: typeSentry.optionalOf(typeSentry.structOf({
+            authors: typeSentry.optionalOf(typeSentry.arrayOf(typeSentry.string)),
+            license: typeSentry.optionalOf(typeSentry.string),
+            url: typeSentry.optionalOf(typeSentry.string),
+            product_type: typeSentry.optionalOf(typeSentry.enumLikeOf(MetadataProductType)),
+            generated_with: typeSentry.optionalOf(typeSentry.recordOf(typeSentry.string, typeSentry.arrayOf(typeSentry.string)))
+        }))
+    });
+
+    export class ManifestJson {
+        private readonly path: Path;
+
+        private static readonly manifests: Set<ManifestJson> = new Set();
+
+        public constructor(importMeta: ImportMeta, relativePath: string) {
+            this.path = RelativePathLoader.ofCurrentDirectory(importMeta).relative(relativePath);
+            ManifestJson.manifests.add(this);
         }
 
-        const header: ManifestHeader = {
-            name: manifest.header.name,
-            description: manifest.header.description,
-            uuid: manifest.header.uuid ?? uuidv4(),
-            version: manifest.header.version ?? [1, 0, 0],
-            min_engine_version: manifest.header.min_engine_version
-        };
+        public exists(): boolean {
+            return this.path.toFile().exists();
+        }
 
-        const modules: ManiestModule[] = [];
+        public read(): Manifest {
+            if (!this.exists()) {
+                throw new Error();
+            }
 
-        for (const module of manifest.modules) {
-            modules.push({
-                type: module.type,
-                description: module.description ?? '',
-                uuid: module.uuid ?? uuidv4(),
-                version: module.version ?? [1, 0, 0]
+            return JSON.parse(TextFile.fromFile(this.path.toFile()).read("utf-8").join(''));
+        }
+
+        public create(input: ManifestInput): void {
+            const manifestJsonFile = TextFile.fromFile(this.path.toFile());
+
+            if (manifestJsonFile.exists()) {
+                return;
+            }
+
+            const json = JSON.stringify(ManifestJson.complete(input), undefined, 4);
+
+            manifestJsonFile.create();
+            manifestJsonFile.write(json.split('\n'), "utf-8");
+        }
+
+        private increment(index: number): void {
+            const self = this.read();
+
+            self.header.version[index] += 1;
+
+            ManifestJson.manifests.forEach(manifest => {
+                if (manifest === this) return;
+                const text = manifest.read();
+                let f = false;
+                text.dependencies?.forEach(dependency => {
+                    if (ManifestAddonDependencyModel.test(dependency)) {
+                        if (dependency.uuid === self.header.uuid) {
+                            dependency.version[index] += 1;
+                            f = true;
+                        }
+                    }
+                });
+                if (f) {
+                    TextFile.fromFile(manifest.path.toFile()).write(JSON.stringify(text, undefined, 4).split('\n'), "utf-8");
+                }
             });
+
+            TextFile.fromFile(this.path.toFile()).write(JSON.stringify(self, undefined, 4).split('\n'), "utf-8");
         }
 
-        const dependencies: ManifestDependency[] = manifest.dependencies?.map(dependency => {
-            if ("uuid" in dependency) {
-                return { uuid: dependency.uuid, version: dependency.version ?? [1, 0, 0] };
-            }
-            else {
-                return dependency;
-            }
-        }) ?? [];
+        public incrementPatchVersion() {
+            this.increment(2);
+        }
 
-        const json = JSON.stringify({
-            format_version: manifest.format_version ?? 2,
-            header,
-            modules,
-            dependencies,
-            capabilities: manifest.capabilities,
-            metadata: manifest.metadata
-        }, undefined, 4);
+        public incrementMinorVersion() {
+            this.increment(1);
+        }
 
-        manifestJson.create();
-        TextFile.fromFile(manifestJson).write(json.split('\n'), "utf-8");
+        public incrementMajorVersion() {
+            this.increment(0);
+        }
+
+        private static complete(input: ManifestInput): Manifest {
+            const modules: (ManifestModule | ManifestScriptModule)[] = [];
+
+            for (const module of input.modules) {
+                if ("entry" in module) {
+                    modules.push({
+                        type: module.type,
+                        description: module.description ?? '',
+                        uuid: module.uuid ?? uuidv4(),
+                        version: module.version ?? [1, 0, 0],
+                        language: module.language ?? ScriptLanguage.JavaScript,
+                        entry: module.entry
+                    });
+                }
+                else {
+                    modules.push({
+                        type: module.type,
+                        description: module.description ?? '',
+                        uuid: module.uuid ?? uuidv4(),
+                        version: module.version ?? [1, 0, 0]
+                    });
+                }
+            }
+
+            const dependencies: (ManifestAddonDependency | ManifestMinecraftScriptModuleDependency)[] = [];
+
+            if (input.dependencies !== undefined) for (const dependency of input.dependencies) {
+                if ("uuid" in dependency) {
+                    dependencies.push({
+                        uuid: dependency.uuid,
+                        version: dependency.version ?? [1, 0, 0]
+                    });
+                }
+                else {
+                    dependencies.push(dependency);
+                }
+            }
+
+            return {
+                format_version: input.format_version ?? 2,
+                header: {
+                    name: input.header.name,
+                    description: input.header.description,
+                    uuid: input.header.uuid,
+                    version: input.header.version ?? [1, 0, 0],
+                    min_engine_version: input.header.min_engine_version
+                },
+                modules,
+                dependencies: dependencies.length === 0 ? undefined : dependencies,
+                capabilities: input.capabilities,
+                metadata: input.metadata
+            };
+        }
     }
-
-    export const MANIFEST_JSON: string = "manifest.json";
 }

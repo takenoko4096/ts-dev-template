@@ -1,4 +1,6 @@
 import bun from "bun";
+import { minecraft } from "./Minecraft";
+
 console.log("build start");
 
 const output = await bun.build({
