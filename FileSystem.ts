@@ -12,6 +12,10 @@ export class RelativePathLoader {
         this.root = root;
     }
 
+    public getRoot(): Path {
+        return this.root;
+    }
+
     public relative(string: string): Path {
         return this.root.concat(string);
     }
@@ -24,9 +28,9 @@ export class RelativePathLoader {
 export class Path {
     private readonly directory: string;
 
-    private readonly name: string;
+    public readonly name: string;
 
-    private readonly extention: string;
+    public readonly extention: string;
 
     private constructor(string: string) {
         const parseResult = path.parse(string.replaceAll('/', Path.SEPARATOR_CHAR));

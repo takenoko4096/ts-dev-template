@@ -1,5 +1,5 @@
 import { Path, RelativePathLoader, TextFile } from "./FileSystem";
-import { TypeModel, typeSentry } from "./TypeSentry";
+import { TypeModel, typeSentry } from "./libs/TypeSentry";
 
 export namespace minecraft {
     export const sharedGamesComMojang: Path = Path.absolute("C:\\Users\\wakab\\AppData\\Roaming\\Minecraft Bedrock\\Users\\Shared\\games\\com.mojang");
@@ -35,14 +35,14 @@ export namespace minecraft {
         }
 
         if (deployment.behavior !== undefined) {
-            const dest = developmentBehaviorPacks.concat(deployment.behavior);
-            const src = rpl.relative(deployment.behavior);
+            const dest = developmentBehaviorPacks.concat(deployment.behavior === '.' ? Path.absolute(deployment.importMeta.dirname).name : deployment.behavior);
+            const src = deployment.behavior === '.' ? rpl.getRoot() : rpl.relative(deployment.behavior);
             set(src, dest);
         }
 
         if (deployment.resource !== undefined) {
-            const dest = developmentResourcePacks.concat(deployment.resource);
-            const src = rpl.relative(deployment.resource);
+            const dest = developmentResourcePacks.concat(deployment.resource === '.' ? Path.absolute(deployment.importMeta.dirname).name : deployment.resource);
+            const src = deployment.resource === '.' ? rpl.getRoot() : rpl.relative(deployment.resource);
             set(src, dest);
         }
     }
