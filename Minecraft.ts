@@ -31,7 +31,7 @@ export namespace minecraft {
             }
 
             dest.toFile().delete();
-            src.toFile().copyTo(dest);
+            src.toFile().copyTo(dest, ["src", "tsconfig.json", "node_modules", "package.json", ".git", ".gitignore"]);
         }
 
         if (deployment.behavior !== undefined) {

@@ -107,9 +107,13 @@ export class File {
         }
     }
 
-    public copyTo(destination: Path) {
+    public copyTo(destination: Path, exclude: string[]) {
         if (!this.exists()) {
             throw new Error();
+        }
+
+        if (exclude.includes(this.path.name + this.path.extention)) {
+            return;
         }
 
         if (this.isFile()) {
@@ -127,7 +131,7 @@ export class File {
             for (const file of files) {
                 const childSourceFile = new File(this.path.concat(file.name));
                 const childDestinationPath = destination.concat(file.name);
-                childSourceFile.copyTo(childDestinationPath);
+                childSourceFile.copyTo(childDestinationPath, exclude);
             }
         }
     }
